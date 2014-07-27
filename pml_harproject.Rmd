@@ -1,0 +1,195 @@
+Predicting Characteristics of an Exercise Activity
+========================================================
+
+## Synopsis
+The Quantified Self and Human activity recognition are recent trends in tracking and analyzing a person's day to day activities and movements to find patterns in behavior and potentially improve health.
+
+To determine the patterns of performing barbell lifts in different manners, data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants that performed barbell lifts correctly and incorrectly (intentionly) in 5 different ways were recorded. 
+
+The goal of this project is to use this dataset to build a model capable of predicting how a dumbell lift exercise was performed based on the captured data.
+
+Original data, additional information, and references can be found [here].
+
+## Session Information
+
+Load packages
+```{r load R packages}
+library(caret)
+library(corrplot)
+```
+
+Session info
+Information about the current R session
+```{r session info}
+sessionInfo()
+```
+
+## Data Processing
+
+Set working directory to intended folder  
+Download file and read into dataframes **train** and **test**
+
+```{r loading data, cache=TRUE}
+## downloading training file
+urltrain<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+if (!file.exists("./pmltrain.csv")){
+    download.file(urltrain, destfile="./pmltrain.csv")
+}
+
+## downloading testing file
+urltest<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+if (!file.exists("./pmltest.csv")){
+    download.file(urltest, destfile="./pmltest.csv")
+}
+
+## read data into train and test dataframes
+train <- read.csv("./pmltrain.csv", na.strings=c("?","","NA"))
+test <- read.csv("./pmltest.csv", na.strings=c("?","","NA"))
+```
+
+
+### Cleaning data and exploratory data plotting
+
+```{r exploratory data analysis}
+
+## quick exploratory plot to view distribution of NAs in data
+plot(colSums(is.na(train)))
+```
+This exploratory plot shows groups of variables that do not contain information. Based on this finding, these variables will be removed from further downstream processing and analyses.
+
+
+```{r cleaning data}
+## subset data by removing columns with greater than 10000 NAs 
+trainsub <- train[,-which(colSums(is.na(train))>10000)]
+
+## Remove columns not providing exercise activity data
+trainsub <- trainsub[,-(1:7)]
+
+## Apply same subsetting criteria on test dataset
+testsub <- test[,-which(colSums(is.na(test))>15)]
+testsub <- testsub[,-(1:7)]
+
+```
+
+
+The cleaned-up training dataset **trainsub** will be further partitioned into: 
+- model training dataset **fortrain** (70% of **trainsub** data)
+- cross validation dataset **fortest** (30% of **trainsub** data)
+
+```{r partition cross validation dataset}
+
+trainpart <- createDataPartition(y=trainsub$classe,p=0.7,list=FALSE)
+fortrain <- trainsub[trainpart,]
+fortest <- trainsub[-trainpart,]
+
+```
+
+
+## Building a Model
+
+### Principle Components Analysis
+
+Principle components analysis (PCA) is utilized to reveal the unapparent structures in data that best explains the variance in the data. PCA can reduce the dimensionality and decrease redundancy in a complex dataset for further downstream applications.  
+
+```{r principal components analysis plot}
+
+cm <- cor(fortrain[,-53])
+corrplot(cm, method="color",type="lower",diag=FALSE,order="FPC",tl.cex=0.5,
+         tl.col="grey35")
+
+```
+The above figure is a graphical display of a correlation matrix of the different variables in the dataset. The darker the blue the higher the positive correlations; the darker the red the higher the negative correlation. Near-white, light pink and blue colors demonstrate less or little correlation. 
+
+```{r principal components analysis}
+
+pre <- preProcess(fortrain[,-53],method="pca",thresh=0.99)
+
+fortrainpca <- predict(pre, fortrain[,-53])
+fortestpca <- predict(pre, fortest[,-53])
+
+```
+The data is preprocessed using the "pca" method. Remember to remove the "classe" variable (which is the variable we want to predict) out of the preprocessing dataset. This reduces the number of variables from 53 to 36. This will reduce dimensionality and redundancy for the next model training step.
+
+
+### Random Forests
+
+Based on the [characteristics of the random forest algorithm], the dataset was trained with the random forest method. 
+
+```{r fit a model random forests, cache=TRUE}
+
+rfmodel <- train(fortrain$classe ~ .,method="rf",data=fortrainpca,
+                 trControl=trainControl(method="cv",number=5),importance=TRUE)
+
+```
+
+
+The importance of the different principal component variables is shown in the following table.
+
+```{r importance of pc}
+## This will show the principal components with the most importance
+varImp(rfmodel)
+
+##varImpPlot(rfmodel$finalModel,sort=TRUE,cex=0.7)
+```
+
+
+The following exploratory plots show the distribution of data for the top two principal components. 
+
+```{r test out some plots}
+
+## notes of some exploratory attempts
+## head(pre)
+## str(pre)
+
+zquicktry <- predict(pre, fortrain[,-53])
+zquicktry[,37] <- fortrain[,53]
+colnames(zquicktry)[37] <- "classe"
+
+## This will show the principal components with the most importance
+varImp(rfmodel)
+
+## par(mfrow = c(1, 2))
+qplot(PC1,colour=classe,data=zquicktry,geom="density")
+qplot(PC12,colour=classe,data=zquicktry,geom="density")
+qplot(PC1,PC12,colour=classe,data=zquicktry,alpha=0.5)
+
+```
+
+
+## Cross Validation and Out-of-sample Error
+
+Cross validation testing was performed on the previously partitioned **fortest** dataset. The confusion matrix summarizes how the model predicted the "classe" variable in the validation dataset.
+
+```{r cross validation and error estimate}
+
+predictfortest <- predict(rfmodel, fortestpca)
+
+cfmatrix <- confusionMatrix(fortest$classe, predictfortest)
+
+cfmatrix
+
+```
+
+- The estimated accuracy is **0.9842**
+- The estimated out of sample error is **1 - Accuracy = 0.0176**
+
+
+## Prediction of Test Cases
+
+The test dataset was processed and analyzed by the model described above. The predictions of the "classe" for each case is shown below.
+
+```{r predict results}
+
+actualtest <- predict(pre,testsub[,-53])
+
+predicttest<- predict(rfmodel,actualtest)
+
+predicttest
+
+
+```
+
+
+
+[here]:http://groupware.les.inf.puc-rio.br/har#dataset
+[characteristics of the random forest algorithm]:http://en.wikipedia.org/wiki/Random_forest
