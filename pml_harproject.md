@@ -106,7 +106,8 @@ test <- read.csv("./pmltest.csv", na.strings=c("?","","NA"))
 plot(colSums(is.na(train)))
 ```
 
-![plot of chunk exploratory data analysis](figure/exploratory data analysis.png) 
+![plot of chunk exploratory data analysis](figure/exploratory-data-analysis.png) 
+
 This exploratory plot shows groups of variables that do not contain information. Based on this finding, these variables will be removed from further downstream processing and analyses.
 
 
@@ -149,7 +150,8 @@ corrplot(cm, method="color",type="lower",diag=FALSE,order="FPC",tl.cex=0.5,
          tl.col="grey35")
 ```
 
-![plot of chunk principal components analysis plot](figure/principal components analysis plot.png) 
+![plot of chunk principal components analysis plot](figure/principal-components-analysis-plot.png) 
+
 The above figure is a graphical display of a correlation matrix of the different variables in the dataset. The darker the blue the higher the positive correlations; the darker the red the higher the negative correlation. Near-white, light pink and blue colors demonstrate less or little correlation. 
 
 
@@ -265,19 +267,19 @@ varImp(rfmodel)
 qplot(PC1,colour=classe,data=zquicktry,geom="density")
 ```
 
-![plot of chunk test out some plots](figure/test out some plots1.png) 
+![plot of chunk test out some plots](figure/test-out-some-plots1.png) 
 
 ```r
 qplot(PC12,colour=classe,data=zquicktry,geom="density")
 ```
 
-![plot of chunk test out some plots](figure/test out some plots2.png) 
+![plot of chunk test out some plots](figure/test-out-some-plots2.png) 
 
 ```r
 qplot(PC1,PC12,colour=classe,data=zquicktry,alpha=0.5)
 ```
 
-![plot of chunk test out some plots](figure/test out some plots3.png) 
+![plot of chunk test out some plots](figure/test-out-some-plots3.png) 
 
 
 ## Cross Validation and Out-of-sample Error
